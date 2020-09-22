@@ -1,7 +1,7 @@
-import {useMutableBox, useIsomorphicLayoutEffect} from './util-hooks';
+import {useMutableBox} from './util-hooks';
 import {deepPreserveProps} from './utils';
 import {classNamePlugin} from './className-plugin';
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 
 export default function useSingletonGenerator(createSingleton) {
   return function useSingleton({disabled = false, overrides = []} = {}) {
@@ -11,7 +11,7 @@ export default function useSingletonGenerator(createSingleton) {
       renders: 1,
     });
 
-    useIsomorphicLayoutEffect(() => {
+    useEffect(() => {
       if (!mounted) {
         setMounted(true);
         return;
@@ -56,7 +56,7 @@ export default function useSingletonGenerator(createSingleton) {
       };
     }, [mounted]);
 
-    useIsomorphicLayoutEffect(() => {
+    useEffect(() => {
       if (!mounted) {
         return;
       }

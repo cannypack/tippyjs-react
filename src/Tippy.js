@@ -1,4 +1,4 @@
-import React, {cloneElement, useState} from 'react';
+import React, {cloneElement, useEffect, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {
   preserveRef,
@@ -6,7 +6,7 @@ import {
   toDataAttributes,
   deepPreserveProps,
 } from './utils';
-import {useMutableBox, useIsomorphicLayoutEffect} from './util-hooks';
+import {useMutableBox} from './util-hooks';
 import {classNamePlugin} from './className-plugin';
 
 export default function TippyGenerator(tippy) {
@@ -94,7 +94,7 @@ export default function TippyGenerator(tippy) {
     const deps = [reference].concat(children ? [children.type] : []);
 
     // CREATE
-    useIsomorphicLayoutEffect(() => {
+    useEffect(() => {
       let element = reference;
       if (reference && reference.hasOwnProperty('current')) {
         element = reference.current;
@@ -132,7 +132,7 @@ export default function TippyGenerator(tippy) {
     }, deps);
 
     // UPDATE
-    useIsomorphicLayoutEffect(() => {
+    useEffect(() => {
       // Prevent this effect from running on 1st render
       if (mutableBox.renders === 1) {
         mutableBox.renders++;
@@ -166,7 +166,7 @@ export default function TippyGenerator(tippy) {
       }
     });
 
-    useIsomorphicLayoutEffect(() => {
+    useEffect(() => {
       if (!render) {
         return;
       }

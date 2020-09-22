@@ -1,9 +1,4 @@
-import {isBrowser} from './utils';
-import {useLayoutEffect, useEffect, useRef} from 'react';
-
-export const useIsomorphicLayoutEffect = isBrowser
-  ? useLayoutEffect
-  : useEffect;
+import {useRef} from 'react';
 
 export function useMutableBox(initialValue) {
   // Using refs instead of state as it's recommended to not store imperative
