@@ -71,22 +71,27 @@ export default function TippyGenerator(tippy) {
     if (render) {
       computedProps = {
         ...props,
-        plugins: isSingletonMode
-          ? [
-              ...plugins,
-              {
-                fn: () => ({
-                  onTrigger(_, event) {
-                    const {content} = singleton.data.children.find(
-                      ({instance}) =>
-                        instance.reference === event.currentTarget,
-                    );
-                    setSingletonContent(content);
+        plugins:
+          isSingletonMode && singleton.data != null
+            ? [
+                ...plugins,
+                {
+                  fn() {
+                    return {
+                      onTrigger(instance, event) {
+                        const node = singleton.data.children.find(
+                          ({instance}) =>
+                            instance.reference === event.currentTarget,
+                        );
+                        instance.state.$$activeSingletonInstance =
+                          node.instance;
+                        setSingletonContent(node.content);
+                      },
+                    };
                   },
-                }),
-              },
-            ]
-          : plugins,
+                },
+              ]
+            : plugins,
         render: () => ({popper: mutableBox.container}),
       };
     }
@@ -120,6 +125,7 @@ export default function TippyGenerator(tippy) {
           instance,
           content,
           props: computedProps,
+          setSingletonContent,
         });
       }
 
@@ -143,6 +149,9 @@ export default function TippyGenerator(tippy) {
 
       instance.setProps(deepPreserveProps(instance.props, computedProps));
 
+      // Fixes #264
+      instance.popperInstance?.forceUpdate();
+
       if (disabled) {
         instance.disable();
       } else {
@@ -162,6 +171,7 @@ export default function TippyGenerator(tippy) {
           instance,
           content,
           props: computedProps,
+          setSingletonContent,
         });
       }
     });
@@ -177,7 +187,9 @@ export default function TippyGenerator(tippy) {
         popperOptions: {
           ...instance.props.popperOptions,
           modifiers: [
-            ...(instance.props.popperOptions?.modifiers || []),
+            ...(instance.props.popperOptions?.modifiers || []).filter(
+              ({name}) => name !== '$$tippyReact',
+            ),
             {
               name: '$$tippyReact',
               enabled: true,
@@ -221,7 +233,11 @@ export default function TippyGenerator(tippy) {
         {mounted &&
           createPortal(
             render
-              ? render(toDataAttributes(attrs), singletonContent)
+              ? render(
+                  toDataAttributes(attrs),
+                  singletonContent,
+                  mutableBox.instance,
+                )
               : content,
             mutableBox.container,
           )}

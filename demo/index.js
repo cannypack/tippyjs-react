@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, forwardRef} from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import {useSpring, animated} from 'react-spring';
@@ -42,6 +42,53 @@ const ReactFramerBox = styled(motion.div)`
   }
 `;
 
+const LazyTippy = forwardRef((props, ref) => {
+  const [mounted, setMounted] = useState(false);
+
+  const lazyPlugin = {
+    fn: () => ({
+      onMount: () => setMounted(true),
+      onHidden: () => setMounted(false),
+    }),
+  };
+
+  const computedProps = {...props};
+
+  computedProps.plugins = [lazyPlugin, ...(props.plugins || [])];
+
+  if (props.render) {
+    computedProps.render = (...args) => (mounted ? props.render(...args) : '');
+  } else {
+    computedProps.content = mounted ? props.content : '';
+  }
+
+  return <Tippy {...computedProps} ref={ref} />;
+});
+
+function CountContent() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCount(c => c + 1);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return count;
+}
+
+function LazyTippyExample() {
+  return (
+    <LazyTippy content={<CountContent />} hideOnClick={false}>
+      <LazyTippy content={<CountContent />} trigger="click" placement="bottom">
+        <button>Lazy tippy</button>
+      </LazyTippy>
+    </LazyTippy>
+  );
+}
+
 function ContentString() {
   const [count, setCount] = useState(0);
 
@@ -52,7 +99,7 @@ function ContentString() {
   }, []);
 
   return (
-    <Tippy content={count}>
+    <Tippy content={count} popperOptions={{modifiers: [{name: 'hi'}]}}>
       <button>ContentString</button>
     </Tippy>
   );
@@ -117,6 +164,34 @@ function Singleton() {
       <Tippy content="Bye" singleton={target}>
         <button>Reference</button>
       </Tippy>
+    </>
+  );
+}
+
+function SingletonHeadlessDynamicContent() {
+  const [source, target] = useSingletonHeadless();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    setInterval(() => {
+      setCount(c => c + 1);
+    }, 1000);
+  }, []);
+
+  return (
+    <>
+      <TippyHeadless
+        render={(attrs, content) => (
+          <ReactSpringBox {...attrs}>{content}</ReactSpringBox>
+        )}
+        singleton={source}
+      />
+      <TippyHeadless content={count} singleton={target}>
+        <button>Reference</button>
+      </TippyHeadless>
+      <TippyHeadless content={count + 1} singleton={target}>
+        <button>Reference</button>
+      </TippyHeadless>
     </>
   );
 }
@@ -318,6 +393,8 @@ function App() {
       <Singleton />
       <h2>Singleton Headless</h2>
       <SingletonHeadless />
+      <h2>Singleton Headless Dynamic Content</h2>
+      <SingletonHeadlessDynamicContent />
       <h2>Nested Singleton</h2>
       <NestedSingleton />
       <h2>Plugins</h2>
@@ -330,7 +407,37 @@ function App() {
       <FullyControlledOnClick />
       <h2>Reference prop</h2>
       <ReferenceProp />
+      <h2>Nested update</h2>
+      <NestedUpdate />
+      <h2>Lazy Tippy</h2>
+      <LazyTippyExample />
     </>
+  );
+}
+
+function NestedUpdate() {
+  const [value, setValue] = useState(Math.random());
+
+  useEffect(() => {
+    const id = setInterval(() => setValue(Math.random()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="App">
+      <h1>{value}</h1>
+      <Tippy content={<NestedContent />} interactive trigger="click">
+        <span>Hover me</span>
+      </Tippy>
+    </div>
+  );
+}
+
+function NestedContent() {
+  return (
+    <Tippy content="Hello" trigger="click">
+      <span>Click me</span>
+    </Tippy>
   );
 }
 

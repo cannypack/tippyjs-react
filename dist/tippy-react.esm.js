@@ -48,14 +48,48 @@ function toDataAttributes(attrs) {
 
   return dataAttrs;
 }
+
+function deepEqual(x, y) {
+  if (x === y) {
+    return true;
+  } else if (typeof x === 'object' && x != null && typeof y === 'object' && y != null) {
+    if (Object.keys(x).length !== Object.keys(y).length) {
+      return false;
+    }
+
+    for (var prop in x) {
+      if (y.hasOwnProperty(prop)) {
+        if (!deepEqual(x[prop], y[prop])) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function uniqueByShape(arr) {
+  var output = [];
+  arr.forEach(function (item) {
+    if (!output.find(function (outputItem) {
+      return deepEqual(item, outputItem);
+    })) {
+      output.push(item);
+    }
+  });
+  return output;
+}
 function deepPreserveProps(instanceProps, componentProps) {
   var _instanceProps$popper, _componentProps$poppe;
 
   return Object.assign({}, componentProps, {
     popperOptions: Object.assign({}, instanceProps.popperOptions, componentProps.popperOptions, {
-      modifiers: [].concat((((_instanceProps$popper = instanceProps.popperOptions) == null ? void 0 : _instanceProps$popper.modifiers) || []).filter(function (modifier) {
-        return modifier.name.indexOf('tippy') >= 0;
-      }), ((_componentProps$poppe = componentProps.popperOptions) == null ? void 0 : _componentProps$poppe.modifiers) || [])
+      modifiers: uniqueByShape([].concat(((_instanceProps$popper = instanceProps.popperOptions) == null ? void 0 : _instanceProps$popper.modifiers) || [], ((_componentProps$poppe = componentProps.popperOptions) == null ? void 0 : _componentProps$poppe.modifiers) || []))
     })
   });
 }
@@ -89,7 +123,7 @@ var classNamePlugin = {
     var isDefaultRenderFn = function isDefaultRenderFn() {
       var _instance$props$rende;
 
-      return !!((_instance$props$rende = instance.props.render) == null ? void 0 : _instance$props$rende.$$tippy);
+      return !!((_instance$props$rende = instance.props.render) != null && _instance$props$rende.$$tippy);
     };
 
     function add() {
@@ -118,6 +152,7 @@ var classNamePlugin = {
   }
 };
 
+var _excluded = ["children", "content", "visible", "singleton", "render", "reference", "disabled", "ignoreAttributes", "__source", "__self"];
 function TippyGenerator(tippy) {
   function Tippy(_ref) {
     var children = _ref.children,
@@ -132,7 +167,7 @@ function TippyGenerator(tippy) {
         ignoreAttributes = _ref$ignoreAttributes === void 0 ? true : _ref$ignoreAttributes,
         __source = _ref.__source,
         __self = _ref.__self,
-        restOfNativeProps = _objectWithoutPropertiesLoose(_ref, ["children", "content", "visible", "singleton", "render", "reference", "disabled", "ignoreAttributes", "__source", "__self"]);
+        restOfNativeProps = _objectWithoutPropertiesLoose(_ref, _excluded);
 
     var isControlledMode = visible !== undefined;
     var isSingletonMode = singleton !== undefined;
@@ -183,17 +218,16 @@ function TippyGenerator(tippy) {
 
     if (render) {
       computedProps = Object.assign({}, props, {
-        plugins: isSingletonMode ? [].concat(plugins, [{
+        plugins: isSingletonMode && singleton.data != null ? [].concat(plugins, [{
           fn: function fn() {
             return {
-              onTrigger: function onTrigger(_, event) {
-                var _singleton$data$child = singleton.data.children.find(function (_ref2) {
+              onTrigger: function onTrigger(instance, event) {
+                var node = singleton.data.children.find(function (_ref2) {
                   var instance = _ref2.instance;
                   return instance.reference === event.currentTarget;
-                }),
-                    content = _singleton$data$child.content;
-
-                setSingletonContent(content);
+                });
+                instance.state.$$activeSingletonInstance = node.instance;
+                setSingletonContent(node.content);
               }
             };
           }
@@ -232,7 +266,8 @@ function TippyGenerator(tippy) {
         singleton.hook({
           instance: instance,
           content: content,
-          props: computedProps
+          props: computedProps,
+          setSingletonContent: setSingletonContent
         });
       }
 
@@ -244,6 +279,8 @@ function TippyGenerator(tippy) {
     }, deps); // UPDATE
 
     useEffect(function () {
+      var _instance$popperInsta;
+
       // Prevent this effect from running on 1st render
       if (mutableBox.renders === 1) {
         mutableBox.renders++;
@@ -251,7 +288,9 @@ function TippyGenerator(tippy) {
       }
 
       var instance = mutableBox.instance;
-      instance.setProps(deepPreserveProps(instance.props, computedProps));
+      instance.setProps(deepPreserveProps(instance.props, computedProps)); // Fixes #264
+
+      (_instance$popperInsta = instance.popperInstance) == null ? void 0 : _instance$popperInsta.forceUpdate();
 
       if (disabled) {
         instance.disable();
@@ -271,7 +310,8 @@ function TippyGenerator(tippy) {
         singleton.hook({
           instance: instance,
           content: content,
-          props: computedProps
+          props: computedProps,
+          setSingletonContent: setSingletonContent
         });
       }
     });
@@ -285,15 +325,18 @@ function TippyGenerator(tippy) {
       var instance = mutableBox.instance;
       instance.setProps({
         popperOptions: Object.assign({}, instance.props.popperOptions, {
-          modifiers: [].concat(((_instance$props$poppe = instance.props.popperOptions) == null ? void 0 : _instance$props$poppe.modifiers) || [], [{
+          modifiers: [].concat((((_instance$props$poppe = instance.props.popperOptions) == null ? void 0 : _instance$props$poppe.modifiers) || []).filter(function (_ref3) {
+            var name = _ref3.name;
+            return name !== '$$tippyReact';
+          }), [{
             name: '$$tippyReact',
             enabled: true,
             phase: 'beforeWrite',
             requires: ['computeStyles'],
-            fn: function fn(_ref3) {
+            fn: function fn(_ref4) {
               var _state$modifiersData;
 
-              var state = _ref3.state;
+              var state = _ref4.state;
               var hideData = (_state$modifiersData = state.modifiersData) == null ? void 0 : _state$modifiersData.hide; // WARNING: this is a high-risk path that can cause an infinite
               // loop. This expression _must_ evaluate to false when required
 
@@ -316,12 +359,13 @@ function TippyGenerator(tippy) {
         mutableBox.ref = node;
         preserveRef(children.ref, node);
       }
-    }) : null, mounted && /*#__PURE__*/createPortal(render ? render(toDataAttributes(attrs), singletonContent) : content, mutableBox.container));
+    }) : null, mounted && /*#__PURE__*/createPortal(render ? render(toDataAttributes(attrs), singletonContent, mutableBox.instance) : content, mutableBox.container));
   }
 
   return Tippy;
 }
 
+var _excluded$1 = ["content"];
 function useSingletonGenerator(createSingleton) {
   return function useSingleton(_temp) {
     var _ref = _temp === void 0 ? {} : _temp,
@@ -396,9 +440,9 @@ function useSingletonGenerator(createSingleton) {
 
       var _sourceData$props = sourceData.props,
           content = _sourceData$props.content,
-          props = _objectWithoutPropertiesLoose(_sourceData$props, ["content"]);
+          props = _objectWithoutPropertiesLoose(_sourceData$props, _excluded$1);
 
-      instance.setProps(deepPreserveProps(instance, Object.assign({}, props, {
+      instance.setProps(deepPreserveProps(instance.props, Object.assign({}, props, {
         overrides: overrides
       })));
       instance.setInstances(children.map(function (child) {
@@ -416,6 +460,7 @@ function useSingletonGenerator(createSingleton) {
         data: mutableBox,
         hook: function hook(data) {
           mutableBox.sourceData = data;
+          mutableBox.setSingletonContent = data.setSingletonContent;
         },
         cleanup: function cleanup() {
           mutableBox.sourceData = null;
@@ -423,17 +468,34 @@ function useSingletonGenerator(createSingleton) {
       };
       var target = {
         hook: function hook(data) {
-          if (!mutableBox.children.find(function (_ref3) {
+          var _mutableBox$instance, _mutableBox$instance2;
+
+          mutableBox.children = mutableBox.children.filter(function (_ref3) {
             var instance = _ref3.instance;
-            return data.instance === instance;
-          })) {
-            mutableBox.children.push(data);
+            return data.instance !== instance;
+          });
+          mutableBox.children.push(data);
+
+          if ((_mutableBox$instance = mutableBox.instance) != null && _mutableBox$instance.state.isMounted && ((_mutableBox$instance2 = mutableBox.instance) == null ? void 0 : _mutableBox$instance2.state.$$activeSingletonInstance) === data.instance) {
+            mutableBox.setSingletonContent == null ? void 0 : mutableBox.setSingletonContent(data.content);
+          }
+
+          if (mutableBox.instance && !mutableBox.instance.state.isDestroyed) {
+            mutableBox.instance.setInstances(mutableBox.children.map(function (child) {
+              return child.instance;
+            }));
           }
         },
         cleanup: function cleanup(instance) {
           mutableBox.children = mutableBox.children.filter(function (data) {
             return data.instance !== instance;
           });
+
+          if (mutableBox.instance && !mutableBox.instance.state.isDestroyed) {
+            mutableBox.instance.setInstances(mutableBox.children.map(function (child) {
+              return child.instance;
+            }));
+          }
         }
       };
       return [source, target];
@@ -441,10 +503,11 @@ function useSingletonGenerator(createSingleton) {
   };
 }
 
+var _excluded$2 = ["children"];
 var forwardRef = (function (Tippy, defaultProps) {
   return /*#__PURE__*/forwardRef$1(function TippyWrapper(_ref, _ref2) {
     var children = _ref.children,
-        props = _objectWithoutPropertiesLoose(_ref, ["children"]);
+        props = _objectWithoutPropertiesLoose(_ref, _excluded$2);
 
     return (
       /*#__PURE__*/

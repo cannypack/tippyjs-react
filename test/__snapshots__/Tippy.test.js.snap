@@ -14,7 +14,11 @@ Array [
 `;
 
 exports[`<Tippy /> render prop 1`] = `
-<div>
+<div
+  data-escaped=""
+  data-placement="top"
+  data-reference-hidden=""
+>
   Hello
 </div>
 `;
@@ -25,17 +29,17 @@ Object {
     Object {
       "enabled": true,
       "fn": [Function],
+      "name": "x",
+      "phase": "main",
+    },
+    Object {
+      "enabled": true,
+      "fn": [Function],
       "name": "$$tippyReact",
       "phase": "beforeWrite",
       "requires": Array [
         "computeStyles",
       ],
-    },
-    Object {
-      "enabled": true,
-      "fn": [Function],
-      "name": "x",
-      "phase": "main",
     },
   ],
   "strategy": "fixed",

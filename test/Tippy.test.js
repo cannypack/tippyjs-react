@@ -1,10 +1,12 @@
 import React, {useRef, useState} from 'react';
 import TippyBase from '../src';
-import {render, cleanup} from '@testing-library/react';
+import {
+  render,
+  screen,
+  waitForElementToBeRemoved,
+} from '@testing-library/react';
 
 jest.useFakeTimers();
-
-afterEach(cleanup);
 
 describe('<Tippy />', () => {
   let instance = null;
@@ -53,6 +55,27 @@ describe('<Tippy />', () => {
     );
 
     expect(instance.popper.querySelector('strong')).not.toBeNull();
+  });
+
+  test('cleans up after unmounting in tests', async () => {
+    render(
+      <Tippy
+        content="tooltip"
+        trigger="click"
+        // test will fail if animation is enabled
+        animation={false}
+      >
+        <button />
+      </Tippy>,
+    );
+
+    // open up the tooltip
+    screen.getByRole('button').click();
+    expect(screen.getByText('tooltip')).toBeInTheDocument();
+
+    // close the tooltip
+    screen.getByRole('button').click();
+    await waitForElementToBeRemoved(() => screen.queryByText('tooltip'));
   });
 
   test('props.className: single name is added to tooltip', () => {
@@ -457,6 +480,25 @@ describe('<Tippy />', () => {
     jest.runAllTimers();
 
     expect(instance.popper.firstElementChild).toMatchSnapshot();
+  });
+
+  test('render prop instance', () => {
+    let _instance;
+    render(
+      <Tippy
+        render={(attrs, content, instance) => {
+          _instance = instance;
+          return <div {...attrs}>Hello</div>;
+        }}
+        showOnCreate={true}
+      >
+        <button />
+      </Tippy>,
+    );
+
+    jest.runAllTimers();
+
+    expect(_instance).toBe(instance);
   });
 
   test('render prop preserve popperOptions', () => {
